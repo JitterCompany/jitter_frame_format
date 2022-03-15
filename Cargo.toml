@@ -1,0 +1,9 @@
+[package]
+name = "jitter_frame_format"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nb = "1.0.0"
+base64 = "0.13.0"
+crc = "2.1.0"

@@ -111,7 +111,7 @@ mod tests {
         transmitter
             .transmit(0x1337, &[0x0, 0x1, 0x2])
             .expect("Transmit failed!");
-        assert_eq!(12, tx_count, "Expect 12-byte message"); // 6-byte header, 4-byte data, 2-byte CRC
+        assert_eq!(6 + 4 + 2, tx_count, "Expect 12-byte message"); // 6-byte header, 4-byte data, 2-byte CRC
 
         // Frame header
         assert_eq!(data[0], 0xF1); // Start-of-frame marker
@@ -130,5 +130,42 @@ mod tests {
         // CRC16-USB over [00, 01, 02] should be 0x6E0E = [0x0E, 0x6E] (little-endian)
         assert_eq!(data[10], 0x0E);
         assert_eq!(data[11], 0x6E);
+    }
+
+    #[test]
+    fn transmit_long_packet_works() {
+        let mut data = [0; 0xFFFF];
+        let mut tx_count: usize = 0;
+        let tx = DummyTransmitter {
+            data: &mut data,
+            tx_count: &mut tx_count,
+        };
+        let mut transmitter = Transmitter::new(tx);
+        transmitter
+            .transmit(
+                0x1337,
+                &[
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
+                    23, 24, 25, 26, 27, 28, 29, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18,
+                    17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2,
+                ],
+            )
+            .expect("Transmit failed!");
+        // 58 bytes = 78+2 bytes of base64
+        assert_eq!(6 + 78 + 2, tx_count, "Expect 12-byte message");
+        assert_eq!(0, data[6 + 78 + 2]);
+        // Frame header
+        assert_eq!(data[0], 0xF1); // Start-of-frame marker
+        assert_eq!(data[1], 0x37); // packet ID 0x1337 as little-endian (low byte)
+        assert_eq!(data[2], 0x13); // packet ID 0x1337 as little-endian (high byte)
+        assert_eq!(data[3], 78 + 2); // Length of encoded data (low byte)
+        assert_eq!(data[4], 0x00); // Length of encoded data (high byte)
+        assert_eq!(data[5], 0xFF); // End-of-header marker
+
+        // CRC16-USB (little-endian)
+        assert_eq!(data[6 + 78 + 0], 0x53);
+        assert_eq!(data[6 + 78 + 1], 0x8F);
+
+        // (Data is probably correct if the CRC16 matches..)
     }
 }

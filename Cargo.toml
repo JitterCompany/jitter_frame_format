@@ -5,5 +5,5 @@ edition = "2021"
 
 [dependencies]
 nb = "1.0.0"
-base64 = "0.13.0"
+base64 = { version = "0.13.0", default-features = false}
 crc = "2.1.0"

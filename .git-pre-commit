@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -e
+
+# Run tests
+cargo test
+
+# Verify the code builds on no_std target
+cargo build --target thumbv6m-none-eabi
+

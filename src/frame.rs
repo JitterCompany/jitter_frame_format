@@ -119,6 +119,35 @@ impl TryFrom<&[u8]> for FrameHeader {
     }
 }
 
+impl<const N: usize> Frame<N> {
+    pub fn new(id: u16, payload: &[u8]) -> Result<Self, Error> {
+        let header = FrameHeader::new(id, payload.len())?;
+
+        Ok({
+            // pre-initialize
+            let mut s = Self {
+                header,
+                data: [0; N],
+            };
+
+            // copy data
+            for (i, byte) in payload.iter().enumerate() {
+                s.data[i] = *byte;
+            }
+
+            s
+        })
+    }
+
+    pub fn id(&self) -> u16 {
+        self.header.id
+    }
+
+    pub fn bytes(&self) -> &[u8] {
+        &self.data[0..self.header.payload_len()]
+    }
+}
+
 // try_from slice
 impl<const N: usize> TryFrom<&[u8]> for Frame<N> {
     type Error = Error;
@@ -269,6 +298,17 @@ mod tests {
             // CRC16-USB over [00, 01, 02] should be 0x6E0E = [0x0E, 0x6E] (little-endian) = "Dm4"
             0x44, 0x6D, 0x34,
         ]
+    }
+
+    #[test]
+    fn valid_new() {
+        // Should be a valid frame containing 3 bytes
+        let frame: Frame<3> = Frame::new(0x1337, &[0, 1, 2]).expect("Valid frame");
+        assert_eq!(0x1337, frame.id());
+        assert_eq!(3, frame.bytes().len());
+        assert_eq!(0, frame.bytes()[0]);
+        assert_eq!(1, frame.bytes()[1]);
+        assert_eq!(2, frame.bytes()[2]);
     }
 
     #[test]

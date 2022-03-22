@@ -25,6 +25,13 @@ where
         }
     }
 
+    pub fn transmit_frame<const N: usize>(
+        &mut self,
+        frame: &frame::Frame<N>,
+    ) -> nb::Result<(), crate::error::Error> {
+        self.transmit(frame.id(), frame.bytes())
+    }
+
     pub fn transmit(&mut self, packet_id: u16, data: &[u8]) -> nb::Result<(), crate::error::Error> {
         let header = match frame::FrameHeader::new(packet_id, data.len()) {
             Ok(frame) => frame,
@@ -121,6 +128,43 @@ mod tests {
         let mut transmitter = Transmitter::new(tx);
         transmitter
             .transmit(0x1337, &[0x0, 0x1, 0x2])
+            .expect("Transmit failed!");
+        assert_eq!(6 + 7, tx_count, "Expect 13-byte message"); // 6-byte header + 8/6 * (3-byte data + 2-byte CRC)
+
+        // Frame header
+        assert_eq!(data[0], 0xF1); // Start-of-frame marker
+        assert_eq!(data[1], 0x37); // packet ID 0x1337 as little-endian (low byte)
+        assert_eq!(data[2], 0x13); // packet ID 0x1337 as little-endian (high byte)
+        assert_eq!(data[3], 0x07); // Packet length 7 (4-byte data + 3-byte CRC) (low byte)
+        assert_eq!(data[4], 0x00); // Packet length 7 (4-byte data + 3-byte CRC) (high byte)
+        assert_eq!(data[5], 0xFF); // End-of-header marker
+
+        // base64-encoded [00, 01, 02] should be "AAEC" = [0x41, 0x41, 0x45, 0x43]
+        assert_eq!(data[6], 0x41);
+        assert_eq!(data[7], 0x41);
+        assert_eq!(data[8], 0x45);
+        assert_eq!(data[9], 0x43);
+
+        // CRC16-USB over [00, 01, 02] should be 0x6E0E = [0x0E, 0x6E] (little-endian) = "Dm4"
+        assert_eq!(data[10], 0x44);
+        assert_eq!(data[11], 0x6D);
+        assert_eq!(data[12], 0x34);
+    }
+
+    #[test]
+    /// Same as `transmit_works()` but using the `transmit_frame()` API
+    fn transmit_frame_works() {
+        let mut data = [0; 0xFFFF];
+        let mut tx_count: usize = 0;
+        let tx = DummyTransmitter {
+            data: &mut data,
+            tx_count: &mut tx_count,
+        };
+
+        let frame = Frame::<128>::new(0x1337, &[0, 1, 2]).expect("Valid frame");
+        let mut transmitter = Transmitter::new(tx);
+        transmitter
+            .transmit_frame(&frame)
             .expect("Transmit failed!");
         assert_eq!(6 + 7, tx_count, "Expect 13-byte message"); // 6-byte header + 8/6 * (3-byte data + 2-byte CRC)
 

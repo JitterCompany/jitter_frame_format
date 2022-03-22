@@ -177,6 +177,6 @@ mod tests {
         // (expect CRC = 0x8F53 == 36691)
 
         // Should be possible to create a valid frame from these bytes
-        let frame: Frame<128> = Frame::try_from(&data[0..6 + 78 + 2]).expect("Invalid packet");
+        let _frame: Frame<128> = Frame::try_from(&data[0..6 + 78 + 2]).expect("Invalid packet");
     }
 }

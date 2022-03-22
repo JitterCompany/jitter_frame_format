@@ -7,7 +7,7 @@ pub struct Transmitter<TX> {
 
 pub trait TransmitQueue {
     fn space_available(&self) -> usize;
-    fn write(&mut self, byte: u8) -> Result<(), ()>;
+    fn write(&mut self, byte: u8) -> Result<(), u8>;
 }
 
 impl<TX> Transmitter<TX>
@@ -99,9 +99,9 @@ mod tests {
             0xFFFF_usize - *self.tx_count
         }
 
-        fn write(&mut self, byte: u8) -> Result<(), ()> {
+        fn write(&mut self, byte: u8) -> Result<(), u8> {
             if *self.tx_count >= 0xFFFF_usize {
-                return Err(());
+                return Err(byte);
             }
 
             self.data[*self.tx_count] = byte;

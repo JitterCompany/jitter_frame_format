@@ -5,6 +5,7 @@ pub enum Error {
     InvalidLength,
     InvalidCRC,
     InvalidBase64,
+    QueueUnderflow,
     QueueOverflow,
     TooManyBytes,
     TooFewBytes,

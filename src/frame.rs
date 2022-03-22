@@ -1,3 +1,6 @@
+use crate::error::Error;
+use crc::{Crc, CRC_16_USB};
+
 #[derive(Debug)]
 pub struct Frame<const N: usize> {
     header: FrameHeader,
@@ -88,6 +91,14 @@ impl FrameHeader {
     }
 }
 
+impl TryFrom<[u8; 6]> for FrameHeader {
+    type Error = Error;
+
+    fn try_from(slice: [u8; 6]) -> Result<Self, Self::Error> {
+        Self::try_from(&slice[0..6])
+    }
+}
+
 impl TryFrom<&[u8]> for FrameHeader {
     type Error = Error;
 
@@ -150,18 +161,16 @@ impl<const N: usize> Frame<N> {
     }
 }
 
-// try_from slice
-impl<const N: usize> TryFrom<&[u8]> for Frame<N> {
+// try_from header + slice
+impl<const N: usize> TryFrom<(FrameHeader, &[u8])> for Frame<N> {
     type Error = Error;
 
-    fn try_from(slice: &[u8]) -> Result<Self, Self::Error> {
-        let header: FrameHeader = slice[0..6].try_into()?;
+    fn try_from(header_and_bytes: (FrameHeader, &[u8])) -> Result<Self, Self::Error> {
+        let (header, b64_data) = header_and_bytes;
 
         if N < header.payload_len() {
             return Err(Error::TooManyBytes);
         }
-
-        let b64_data = &slice[6..];
 
         let b64_len = header.data_len();
         if b64_data.len() < b64_len {
@@ -226,6 +235,18 @@ impl<const N: usize> TryFrom<&[u8]> for Frame<N> {
         }
 
         Ok(frame)
+    }
+}
+
+// try_from slice
+impl<const N: usize> TryFrom<&[u8]> for Frame<N> {
+    type Error = Error;
+
+    fn try_from(slice: &[u8]) -> Result<Self, Self::Error> {
+        let header: FrameHeader = slice[0..6].try_into()?;
+        let b64_data = &slice[6..];
+
+        Self::try_from((header, b64_data))
     }
 }
 

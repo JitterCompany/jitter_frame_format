@@ -93,7 +93,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::frame::Frame;
+    use crate::frame::{Frame, END_OF_HEADER, START_OF_FRAME};
 
     use super::{TransmitQueue, Transmitter};
 
@@ -132,12 +132,12 @@ mod tests {
         assert_eq!(6 + 7, tx_count, "Expect 13-byte message"); // 6-byte header + 8/6 * (3-byte data + 2-byte CRC)
 
         // Frame header
-        assert_eq!(data[0], 0xF1); // Start-of-frame marker
+        assert_eq!(data[0], START_OF_FRAME); // Start-of-frame marker
         assert_eq!(data[1], 0x37); // packet ID 0x1337 as little-endian (low byte)
         assert_eq!(data[2], 0x13); // packet ID 0x1337 as little-endian (high byte)
         assert_eq!(data[3], 0x07); // Packet length 7 (4-byte data + 3-byte CRC) (low byte)
         assert_eq!(data[4], 0x00); // Packet length 7 (4-byte data + 3-byte CRC) (high byte)
-        assert_eq!(data[5], 0xFF); // End-of-header marker
+        assert_eq!(data[5], END_OF_HEADER); // End-of-header marker
 
         // base64-encoded [00, 01, 02] should be "AAEC" = [0x41, 0x41, 0x45, 0x43]
         assert_eq!(data[6], 0x41);
@@ -169,12 +169,12 @@ mod tests {
         assert_eq!(6 + 7, tx_count, "Expect 13-byte message"); // 6-byte header + 8/6 * (3-byte data + 2-byte CRC)
 
         // Frame header
-        assert_eq!(data[0], 0xF1); // Start-of-frame marker
+        assert_eq!(data[0], START_OF_FRAME); // Start-of-frame marker
         assert_eq!(data[1], 0x37); // packet ID 0x1337 as little-endian (low byte)
         assert_eq!(data[2], 0x13); // packet ID 0x1337 as little-endian (high byte)
         assert_eq!(data[3], 0x07); // Packet length 7 (4-byte data + 3-byte CRC) (low byte)
         assert_eq!(data[4], 0x00); // Packet length 7 (4-byte data + 3-byte CRC) (high byte)
-        assert_eq!(data[5], 0xFF); // End-of-header marker
+        assert_eq!(data[5], END_OF_HEADER); // End-of-header marker
 
         // base64-encoded [00, 01, 02] should be "AAEC" = [0x41, 0x41, 0x45, 0x43]
         assert_eq!(data[6], 0x41);
@@ -211,12 +211,12 @@ mod tests {
         assert_eq!(6 + 78 + 2, tx_count, "Expect 80-byte message");
         assert_eq!(0, data[6 + 78 + 2]);
         // Frame header
-        assert_eq!(data[0], 0xF1); // Start-of-frame marker
+        assert_eq!(data[0], START_OF_FRAME); // Start-of-frame marker
         assert_eq!(data[1], 0x37); // packet ID 0x1337 as little-endian (low byte)
         assert_eq!(data[2], 0x13); // packet ID 0x1337 as little-endian (high byte)
         assert_eq!(data[3], 78 + 2); // Length of encoded data (low byte)
         assert_eq!(data[4], 0x00); // Length of encoded data (high byte)
-        assert_eq!(data[5], 0xFF); // End-of-header marker
+        assert_eq!(data[5], END_OF_HEADER); // End-of-header marker
 
         // (expect CRC = 0x8F53 == 36691)
 

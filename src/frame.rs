@@ -5,11 +5,13 @@ pub struct Frame<const N: usize> {
 }
 
 #[derive(Debug)]
-pub struct FrameHeader {
+pub(crate) struct FrameHeader {
     id: u16,
     length: u16, // NB: length of base64-data
 }
 
+pub const START_OF_FRAME: u8 = 0xF1;
+pub const END_OF_HEADER: u8 = 0xFF;
 pub const ID_MAX: u16 = 0xF0FF;
 pub const LENGTH_MAX: u16 = 0xF0FF;
 
@@ -76,12 +78,12 @@ impl FrameHeader {
         let id_bytes: [u8; 2] = self.id.to_le_bytes();
         let len_bytes: [u8; 2] = self.length.to_le_bytes();
         [
-            0xF1,
+            START_OF_FRAME,
             id_bytes[0],
             id_bytes[1],
             len_bytes[0],
             len_bytes[1],
-            0xFF,
+            END_OF_HEADER,
         ]
     }
 }
@@ -98,7 +100,7 @@ impl TryFrom<&[u8]> for FrameHeader {
         }
 
         // Parse start-of-frame marker
-        if slice[0] != 0xF1 {
+        if slice[0] != START_OF_FRAME {
             return Err(Error::InvalidHeader);
         }
 
@@ -111,7 +113,7 @@ impl TryFrom<&[u8]> for FrameHeader {
         let length = u16::from_le_bytes(len_bytes);
 
         // Parse end-of-header marker
-        if slice[5] != 0xFF {
+        if slice[5] != END_OF_HEADER {
             return Err(Error::InvalidHeader);
         }
 
@@ -237,66 +239,29 @@ impl<const N: usize, const L: usize> TryFrom<&[u8; L]> for Frame<N> {
     }
 }
 
-/*
- * API Option 1: (myserial should implement interface, less verbose, more efficient)
- *
- * // Tx
- * let transmitter = Transmitter::new(myserial)
- * success = transmitter.transmit(0x1337, [1,2,3,4,5])
- *
- * // Rx
- * let decoder = Decoder::new(myserial);
- *     match decoder.poll() {
- *         Ok(frame) => {do something}
- *         Err() => {}
- * }
- *
- * // RX alt:
- * let decoder = Decoder::new(myserial);
- * match decoder.read(|frame| {
- *      // frame is borrowed instead of copied
- * })
- *
- *
- * API Option2: (less coupling, more code + memory overhead)
- * // Tx
- * let frame = transmit(0x1337, [1,2,3,4,5]);
- * if myserial.space_available() > frame.raw_size()
- *     success = myserial.transmit(frame)
- *
- * // Rx
- * let decoder = Decoder::new();
- * if let some(byte) = myserial.read() {
- *     match decoder.decode(byte) {
- *         Ok(frame) => {do something}
- *         Err() => {}
- * }
- *
- */
-
-use crc::{Crc, CRC_16_USB};
-
-use crate::error::Error;
-
 #[cfg(test)]
 mod tests {
+    use super::{Frame, END_OF_HEADER, START_OF_FRAME};
     use crate::error::Error;
-
-    use super::Frame;
 
     fn valid_frame_bytes() -> [u8; 13] {
         [
             // Frame header
-            0xF1, // Start-of-frame marker
-            0x37, // packet ID 0x1337 as little-endian (low byte)
-            0x13, // packet ID 0x1337 as little-endian (high byte)
-            0x07, // Packet length 7 (4-byte data + 3-byte CRC) (low byte)
-            0x00, // Packet length 7 (4-byte data + 3-byte CRC) (high byte)
-            0xFF, // End-of-header marker
+            START_OF_FRAME, // Start-of-frame marker
+            0x37,           // packet ID 0x1337 as little-endian (low byte)
+            0x13,           // packet ID 0x1337 as little-endian (high byte)
+            0x07,           // Packet length 7 (4-byte data + 3-byte CRC) (low byte)
+            0x00,           // Packet length 7 (4-byte data + 3-byte CRC) (high byte)
+            END_OF_HEADER,  // End-of-header marker
             // base64-encoded [00, 01, 02] should be "AAEC" = [0x41, 0x41, 0x45, 0x43]
-            0x41, 0x41, 0x45, 0x43,
+            0x41,
+            0x41,
+            0x45,
+            0x43,
             // CRC16-USB over [00, 01, 02] should be 0x6E0E = [0x0E, 0x6E] (little-endian) = "Dm4"
-            0x44, 0x6D, 0x34,
+            0x44,
+            0x6D,
+            0x34,
         ]
     }
 
@@ -330,7 +295,7 @@ mod tests {
     #[test]
     fn invalid_end_of_header_from_bytes() {
         let mut frame = valid_frame_bytes();
-        frame[5] = 0xF1; // invalid end-of-header
+        frame[5] = START_OF_FRAME; // invalid end-of-header
 
         let err = Frame::<128>::try_from(&frame).expect_err("Should not be a valid frame header");
         assert_eq!(Error::InvalidHeader, err);
@@ -339,7 +304,7 @@ mod tests {
     #[test]
     fn invalid_id_from_bytes() {
         let mut frame = valid_frame_bytes();
-        frame[2] = 0xF1; // invalid ID: MSB cannot go >= 0xF0
+        frame[2] = START_OF_FRAME; // invalid ID: MSB cannot go >= 0xF0
 
         let err = Frame::<128>::try_from(&frame).expect_err("Should not be a valid frame header");
         assert_eq!(Error::InvalidID, err);
@@ -348,7 +313,7 @@ mod tests {
     #[test]
     fn invalid_length_from_bytes() {
         let mut frame = valid_frame_bytes();
-        frame[4] = 0xF1; // invalid Length: MSB cannot go >= 0xF0
+        frame[4] = START_OF_FRAME; // invalid Length: MSB cannot go >= 0xF0
 
         let err = Frame::<128>::try_from(&frame).expect_err("Should not be a valid frame header");
         assert_eq!(Error::InvalidLength, err);

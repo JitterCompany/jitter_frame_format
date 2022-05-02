@@ -223,4 +223,30 @@ mod tests {
         // Should be possible to create a valid frame from these bytes
         let _frame: Frame<128> = Frame::try_from(&data[0..6 + 78 + 2]).expect("Invalid packet");
     }
+
+    #[test]
+    fn transmit_zero_length_packet_works() {
+        let mut data = [0xBE; 0xFFFF];
+        let mut tx_count: usize = 0;
+        let tx = DummyTransmitter {
+            data: &mut data,
+            tx_count: &mut tx_count,
+        };
+        let mut transmitter = Transmitter::new(tx);
+        transmitter.transmit(0x1337, &[]).expect("Transmit failed!");
+        assert_eq!(6, tx_count, "Expect 6-byte message");
+
+        // Frame header
+        assert_eq!(data[0], START_OF_FRAME); // Start-of-frame marker
+        assert_eq!(data[1], 0x37); // packet ID 0x1337 as little-endian (low byte)
+        assert_eq!(data[2], 0x13); // packet ID 0x1337 as little-endian (high byte)
+        assert_eq!(data[3], 0x00); // Length of encoded data (low byte)
+        assert_eq!(data[4], 0x00); // Length of encoded data (high byte)
+        assert_eq!(data[5], END_OF_HEADER); // End-of-header marker
+
+        assert_eq!(data[6], 0xBE); // Should not be written to
+
+        // Should be possible to create a valid frame from these bytes
+        let _frame: Frame<128> = Frame::try_from(&data[0..6]).expect("Invalid packet");
+    }
 }

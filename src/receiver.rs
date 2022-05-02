@@ -186,6 +186,22 @@ mod tests {
     }
 
     #[test]
+    fn receive_empty_works() {
+        let mut data = [START_OF_FRAME, 0x37, 0x13, 0x00, 0x00, END_OF_HEADER];
+        let mut rx_count: usize = 0;
+        let rx = DummyReceiver {
+            data: &mut data,
+            rx_count: &mut rx_count,
+        };
+        let mut receiver = Receiver::new(rx);
+        let frame: Frame<128> = receiver.receive().expect("Receive failed!");
+
+        assert_eq!(0x1337, frame.id());
+        assert_eq!(0, frame.bytes().len());
+        assert_eq!(0, receiver.bytes_skipped());
+    }
+
+    #[test]
     fn receive_skip1_works() {
         let data = [
             0x34,

@@ -31,6 +31,11 @@ impl FrameHeader {
         // Calculate size used when encoding the given data as a Frame:
         // 6-byte header, 2-byte CRC, base64 overhead
 
+        // No payload: there won't be any CRC or base64 overhead
+        if payload_length == 0 {
+            return Ok(0);
+        }
+
         // prevent int overflow in calculation
         if payload_length >= ((usize::MAX / 8) - 2) {
             return Err(Error::InvalidLength);
@@ -73,8 +78,13 @@ impl FrameHeader {
         // base64 to binary: 6 bits per character
         let binary_len = self.data_len() * 6 / 8;
 
-        // excluding 2-byte CRC
-        binary_len - 2
+        if binary_len >= 2 {
+            // excluding 2-byte CRC
+            binary_len - 2
+        } else {
+            // No payload data
+            0
+        }
     }
 
     pub fn as_bytes(self: Self) -> [u8; 6] {
@@ -184,6 +194,11 @@ impl<const N: usize> TryFrom<(FrameHeader, &[u8])> for Frame<N> {
             header,
             data: [0; N],
         };
+
+        // No data to decode: frame is done
+        if b64_len == 0 {
+            return Ok(frame);
+        }
 
         // Last few bytes may not fit in the output buffer as the encoded data contain 2 extra bytes of CRC checksum.
         // In base64 this is not guaranteed to be at a byte boundary, so we have to decode the last few bytes of data carefully!

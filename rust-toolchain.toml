@@ -1,0 +1,6 @@
+[toolchain]
+channel = "stable-2022-04-07"
+components = [ "rustfmt" ]
+targets = [ "thumbv6m-none-eabi" ]
+profile = "minimal"
+

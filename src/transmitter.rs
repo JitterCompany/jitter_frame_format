@@ -62,8 +62,7 @@ where
             let end_index = offset + BLOCK_SIZE;
 
             let mut encoded: [u8; BLOCK_SIZE * 2] = [0; BLOCK_SIZE * 2];
-
-            let encoded_size = if (end_index + 1) < data.len() {
+            let encoded_size = if (end_index + 1) <= data.len() {
                 let input = &data[offset..end_index];
                 base64::encode_config_slice(input, base64_cfg, &mut encoded)
 
@@ -222,6 +221,44 @@ mod tests {
 
         // Should be possible to create a valid frame from these bytes
         let _frame: Frame<128> = Frame::try_from(&data[0..6 + 78 + 2]).expect("Invalid packet");
+    }
+
+    #[test]
+    fn transmit_30_bytes() {
+        let mut data = [0; 0xFFFF];
+        let mut tx_count: usize = 0;
+        let tx = DummyTransmitter {
+            data: &mut data,
+            tx_count: &mut tx_count,
+        };
+        let mut transmitter = Transmitter::new(tx);
+
+        let test_data = [0x1u8; 30];
+
+        transmitter
+            .transmit(0x1337, &test_data)
+            .expect("Transmit failed!");
+        // 30 bytes = (30+2)*4/3=43 bytes of base64
+        assert_eq!(6 + 40 + 3, tx_count, "Expect 30-byte message");
+    }
+
+    #[test]
+    fn transmit_31_bytes() {
+        let mut data = [0; 0xFFFF];
+        let mut tx_count: usize = 0;
+        let tx = DummyTransmitter {
+            data: &mut data,
+            tx_count: &mut tx_count,
+        };
+        let mut transmitter = Transmitter::new(tx);
+
+        let test_data = [0x1u8; 31];
+
+        transmitter
+            .transmit(0x1337, &test_data)
+            .expect("Transmit failed!");
+        // 31 bytes = (31+2)*4/3=44 bytes of base64
+        assert_eq!(6 + 44, tx_count, "Expect 30-byte message");
     }
 
     #[test]
